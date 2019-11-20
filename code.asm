@@ -6,12 +6,13 @@ INSERT_PROMPT DB 0AH,0DH,'Start input',0AH,0DH,'$'
 QUERY_PROMPT DB 0AH,0DH,'Start query','$'
 ASK_NUMBER DB 0AH,0DH,'Please Input the Student number',0AH,0DH,'$'
 HEADER	DB	0AH,0DH,'NUMBER',09H,'SCORE',09H,'RANK',09H,0AH,0DH,'$'
-FOUND_TARGET DB 0AH,0DH,'Student found!',0AH,0DH,'$'
+FOUND_TARGET DB 0AH,0DH,'Student found!','$'
 LIMIT_PROMPT DB 0AH,0DH,'Reach the upper limit',0AH,0DH,'$'
 NUMBER_PROMPT DB 0AH,0DH,'Please Input Student number',0AH,0DH,'$'
 SCORE_PROMPT DB 0AH,0DH,'Please Input Student score',0AH,0DH,'$'
 RANK_PROMPT DB 0AH,0DH,'Please Input Student rank',0AH,0DH,'$'
 NOT_FOUND DB 0AH,0DH,'Student not found',0AH,0DH,'$'
+TAB	DB	09H,'$'
 DEBUG DB 0AH,0DH,'DEBUG',0AH,0DH,'$'
 N	EQU  3
 INBUF	DB      6 ;定义一个字大小的缓冲区,一个ASCII就是一个字节了，回车也会占用一个字节，最长的是学号，有5位，所以缓冲区要分配6个字节
@@ -77,6 +78,7 @@ QUERY:
         PRINT QUERY_PROMPT
 		;要求输入学号
 		PRINT ASK_NUMBER
+		PRINT HEADER
 		LEA DX,INBUF
 		MOV AH,10
 		INT 21H
@@ -116,15 +118,15 @@ NOTFOUND:
 		PRINT NOT_FOUND
 		JMP CHOOSE
 FOUND:		
-		PRINT FOUND_TARGET
-		PRINT HEADER
 		;AX起始的9个字区域，为记录
 		LEA DI,OUTBUF
 		MOV SI,AX
 		MOV CX,18
 		CLD
 		REP MOVSB
+		;按书上的格式显示
 		PRINT OUTBUF
+		;PRINT FOUND_TARGET
         JMP CHOOSE
 EXIT:
         MOV AH,4CH
