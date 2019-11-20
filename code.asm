@@ -97,7 +97,6 @@ SEARCH:
 		JMP FOUND;如果学号相同		
 NOTMATCH: ;一个学号不匹配
 		POP AX
-		PRINT DEBUG
 		DEC CX ;
 		CMP CX,0
 		JL NOTFOUND
