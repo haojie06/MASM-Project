@@ -17,6 +17,7 @@ N	EQU  3
 INBUF	DB      6 ;定义一个字大小的缓冲区,一个ASCII就是一个字节了，回车也会占用一个字节，最长的是学号，有5位，所以缓冲区要分配6个字节
     	DB      0
         DB      6       DUP(0)
+OUTBUF	DB	18	DUP(0),0AH,0DH,'$'	;输出暂存
 ENGLI	DW	N*9 DUP(0) ;用于储存具体数据的 每一项用3个字储存
 DATA ENDS
 
@@ -49,7 +50,6 @@ CHOOSE:
         JMP CHOOSE
 INSERT:
         MOV BX,0H    ;用于记录输入的数量
-        LEA DI,ENGLI  ;储存区
         PRINT   INSERT_PROMPT
 		LEA AX,ENGLI
 INPUT:
@@ -57,19 +57,11 @@ INPUT:
         JAE LIMIT
         ;进行输入 学号，分数，排名 	
         PRINT NUMBER_PROMPT ;还需要仔细查看关于输入缓冲区的问题
-        MOV DI,AX
-		CALL INPUT_PROC	;向缓冲区输入字符串，长度为一个字，首先输入学号
-		ADD AX,9
-		MOV	DI,AX;DS：SI指向下一个3字储存单元
+		CALL INPUT_PROC	;向缓冲区输入字符串，长度为一个字，首先输入学号,注意在字符串操作中DI会改变，使用AX暂存储存开始的位置
 		PRINT SCORE_PROMPT
 		CALL INPUT_PROC
-		ADD AX,9
-		MOV DI,AX
 		PRINT RANK_PROMPT
 		CALL INPUT_PROC
-		ADD AX,9
-		MOV DI,AX
-		
         INC BX       
         JMP INPUT ;继续下一个输入
 
@@ -103,7 +95,7 @@ NOTMATCH: ;一个学号不匹配
 		PRINT DEBUG
 		DEC CX ;
 		CMP CX,0
-		JE NOTFOUND
+		JL NOTFOUND
 		ADD AX,18
 		MOV SI,AX
 		PUSH AX
@@ -114,6 +106,13 @@ NOTFOUND:
 FOUND:		
 		PRINT FOUND_TARGET
 		PRINT HEADER
+		;AX起始的9个字区域，为记录
+		LEA DI,OUTBUF
+		MOV SI,AX
+		MOV CX,18
+		CLD
+		REP MOVSB
+		PRINT OUTBUF
         JMP CHOOSE
 EXIT:
         MOV AH,4CH
@@ -138,11 +137,14 @@ JE  EXIT
 CMP BYTE PTR INBUF+2,71H
 JE EXIT
 COPY:
+POP AX
+MOV DI,AX
 ADD SI,2
 CLD
 REP MOVSB
-POP AX
+
 POP CX
+ADD AX,6
 RET
 INPUT_PROC	ENDP
 CODE ENDS
