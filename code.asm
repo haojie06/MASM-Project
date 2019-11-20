@@ -46,6 +46,10 @@ CHOOSE:
         JE  INSERT
         CMP AL,50   ;2 ascii
         JE  QUERY
+		CMP AL,51H
+		JE 	EXIT
+		CMP AL,71H
+		JE	EXIT
         PRINT   INVALID_PROMPT
         JMP CHOOSE
 INSERT:
