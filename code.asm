@@ -4,15 +4,20 @@ CHOICE_PROMPT   DB   'Please choose operation mode:',0AH,0DH,'1.Input record 2.Q
 INVALID_PROMPT DB 0AH,0DH,'Invalid input',0AH,0DH,'$'
 INSERT_PROMPT DB 0AH,0DH,'Start input',0AH,0DH,'$'
 QUERY_PROMPT DB 0AH,0DH,'Start query','$'
+ASK_NUMBER DB 0AH,0DH,'Please Input the Student number',0AH,0DH,'$'
+HEADER	DB	0AH,0DH,'NUMBER',09H,'SCORE',09H,'RANK',09H,0AH,0DH,'$'
+FOUND_TARGET DB 0AH,0DH,'Student found!',0AH,0DH,'$'
 LIMIT_PROMPT DB 0AH,0DH,'Reach the upper limit',0AH,0DH,'$'
 NUMBER_PROMPT DB 0AH,0DH,'Please Input Student number',0AH,0DH,'$'
 SCORE_PROMPT DB 0AH,0DH,'Please Input Student score',0AH,0DH,'$'
 RANK_PROMPT DB 0AH,0DH,'Please Input Student rank',0AH,0DH,'$'
-N	EQU  5
+NOT_FOUND DB 0AH,0DH,'Student not found',0AH,0DH,'$'
+DEBUG DB 0AH,0DH,'DEBUG',0AH,0DH,'$'
+N	EQU  3
 INBUF	DB      6 ;定义一个字大小的缓冲区,一个ASCII就是一个字节了，回车也会占用一个字节，最长的是学号，有5位，所以缓冲区要分配6个字节
     	DB      0
         DB      6       DUP(0)
-ENGLI DW  9*N DUP(0) ;用于储存具体数据的 每一列用3个字储存
+ENGLI	DW	N*9 DUP(0) ;用于储存具体数据的 每一项用3个字储存
 DATA ENDS
 
 STACK SEGMENT USE16 STACK
@@ -25,10 +30,12 @@ START:
         MOV AX,DATA
         MOV DS,AX            ;设置数据段寄存器的操作不可少
 		MOV ES,AX
-PRINT   MACRO   A            ;使用宏定义
-        LEA DX,A
+PRINT   MACRO   A           ;使用宏定义
+        PUSH AX
+		LEA DX,A
         MOV AH,9
         INT 21H
+		POP AX
         ENDM
 CHOOSE:  
         PRINT   CHOICE_PROMPT ;提示用户输入
@@ -44,20 +51,25 @@ INSERT:
         MOV BX,0H    ;用于记录输入的数量
         LEA DI,ENGLI  ;储存区
         PRINT   INSERT_PROMPT
-
+		LEA AX,ENGLI
 INPUT:
         CMP BX,N    ;首先判断是否还可以继续进行输入
         JAE LIMIT
         ;进行输入 学号，分数，排名 	
         PRINT NUMBER_PROMPT ;还需要仔细查看关于输入缓冲区的问题
-        CALL INPUT_PROC	;向缓冲区输入字符串，长度为一个字，首先输入学号
-		ADD	DI,6;DS：SI指向下一个字储存单元
+        MOV DI,AX
+		CALL INPUT_PROC	;向缓冲区输入字符串，长度为一个字，首先输入学号
+		ADD AX,9
+		MOV	DI,AX;DS：SI指向下一个3字储存单元
 		PRINT SCORE_PROMPT
 		CALL INPUT_PROC
-		ADD DI,6
+		ADD AX,9
+		MOV DI,AX
 		PRINT RANK_PROMPT
 		CALL INPUT_PROC
-		ADD DI,6
+		ADD AX,9
+		MOV DI,AX
+		
         INC BX       
         JMP INPUT ;继续下一个输入
 
@@ -66,11 +78,49 @@ LIMIT:
         JMP CHOOSE
 QUERY: 
         PRINT QUERY_PROMPT
-        JMP EXIT
+		;要求输入学号
+		PRINT ASK_NUMBER
+		LEA DX,INBUF
+		MOV AH,10
+		INT 21H
+		;进行学号查找 ENGLI 第1、4,7...个三字单元重复N次
+		MOV CX,N
+		LEA AX,ENGLI
+		MOV SI,AX
+		PUSH AX
+SEARCH:
+		PUSH CX
+		MOV CH,0       ;SEARCH会影响CX
+		MOV CL,INBUF+1
+		LEA DI,INBUF
+		ADD DI,2
+		REPZ CMPSB
+		POP CX ;恢复CX
+		JNE NOTMATCH ;这个串不匹配的话进行下一个学号的比较
+		JMP FOUND;如果学号相同		
+NOTMATCH: ;一个学号不匹配
+		POP AX
+		PRINT DEBUG
+		DEC CX ;
+		CMP CX,0
+		JE NOTFOUND
+		ADD AX,18
+		MOV SI,AX
+		PUSH AX
+		JMP SEARCH
+NOTFOUND:
+		PRINT NOT_FOUND
+		JMP CHOOSE
+FOUND:		
+		PRINT FOUND_TARGET
+		PRINT HEADER
+        JMP CHOOSE
 EXIT:
         MOV AH,4CH
         INT 21H
 INPUT_PROC	PROC	NEAR ;定义一个获取缓冲区输入的子程序
+PUSH CX
+PUSH AX
 LEA	DX,INBUF
 MOV	AH,10
 INT	21H
@@ -91,8 +141,9 @@ COPY:
 ADD SI,2
 CLD
 REP MOVSB
+POP AX
+POP CX
 RET
 INPUT_PROC	ENDP
-		
 CODE ENDS
 END START
